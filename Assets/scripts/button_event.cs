@@ -14,14 +14,15 @@ public class button_event : MonoBehaviour {
 		BTN_STOP = 32,
 	};
 
-    public static dataif        m_dataif = null;
-    static GameObject           m_errmsgBox = null;
-    static Button               m_btnAdd = null;
-    static Button               m_btnDelete = null;
-    static Button               m_btnSave = null;
-    static Button               m_btnReset = null;
-    static Button               m_btnStart = null;
-    static Button               m_btnStop = null;
+    public static dataif m_dataif = null;
+    static GameObject m_errmsgBox = null;
+    static GameObject m_editBox = null;
+    static Button m_btnAdd = null;
+    static Button m_btnDelete = null;
+    static Button m_btnSave = null;
+    static Button m_btnReset = null;
+    static Button m_btnStart = null;
+    static Button m_btnStop = null;
 
 	public void click_button_add(){
 		var gObject = GameObject.Find("scroll_list/Viewport/panel_grid/item");
@@ -96,7 +97,8 @@ public class button_event : MonoBehaviour {
 		}
 
         m_dataif.save_user_info();
-	}
+        _set_buttons_enabled(ButtonBit.BTN_RESET | ButtonBit.BTN_START, true);
+    }
 
 	public void click_button_reset(){
 		Debug.Log("Button Reset");  
@@ -110,8 +112,38 @@ public class button_event : MonoBehaviour {
 		Debug.Log("Button Stop");  
 	}
 
-	// 校验Item是否被选中
-	private bool _check_selected(Transform trObj)
+    public void click_button_edit()
+    {
+        if (m_editBox == null)
+        {
+            GameObject box = Resources.Load<GameObject>("prefab/editbox");
+            if (box != null)
+            {
+                m_editBox = Instantiate(box);
+                Debug.Log("click_button_edit Create editbox successfully!");
+            }
+            else
+                Debug.LogError("click_button_edit Create editbox failed!");
+        }
+
+        if (m_editBox != null)
+        {
+            GameObject Parent = GameObject.Find("UIMain");
+            m_editBox.name = "editbox";
+            //_set_field_text(m_editBox.transform, "background/errmsg", errmsg);
+            editbox.set_item(this.transform.parent);
+            m_editBox.layer = LayerMask.NameToLayer("Default");
+            m_editBox.transform.SetParent(Parent.transform);
+            m_editBox.transform.localScale = Vector3.one;
+            m_editBox.transform.localPosition = Vector3.zero;
+            m_editBox.SetActive(true);
+        }
+
+        Debug.Log("obj = " + this.transform.parent);
+    }
+
+    // 校验Item是否被选中
+    private bool _check_selected(Transform trObj)
 	{
 		var toggle = trObj.GetComponentInChildren<Toggle>();
 		//Debug.Log ("toggle = " + toggle);
@@ -121,11 +153,11 @@ public class button_event : MonoBehaviour {
 			return false;
 	}
 
-	// 校验Item 的account，passwd和secondpwd字段是否为空
+	// 校验Item 的account，password和secondpwd字段是否为空
 	private bool _check_empty_and_fetch(Transform trObj, out userdata.AccountInfo info)
 	{
 		info.name = "";
-		info.passwd = "";
+		info.password = "";
 		info.secondpwd = "";
         info.flag = -9999;
 
@@ -133,8 +165,8 @@ public class button_event : MonoBehaviour {
 		if (info.name == "")
 			return false;
 		
-		info.passwd = _get_field_text (trObj, "passwd");
-		if (info.passwd == "")
+		info.password = _get_field_text (trObj, "password");
+		if (info.password == "")
 			return false;
 		
 		info.secondpwd = _get_field_text (trObj, "secondpwd");
@@ -148,9 +180,9 @@ public class button_event : MonoBehaviour {
 		return true;
 	}
 
-	private string _get_field_text(Transform trObj, string name)
+	static public string _get_field_text(Transform trObj, string name)
 	{
-		var	obj = trObj.FindChild (name);
+		Transform obj = trObj.FindChild (name);
 		if (obj == null) {
 			Debug.LogError ("_get_field_text find obj [" + name + "] failed!");
 			return "";

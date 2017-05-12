@@ -8,7 +8,7 @@ public class userdata {
 
 	public struct AccountInfo{
 		public string name;
-		public string passwd;
+		public string password;
 		public string secondpwd;
         public int flag;
     };

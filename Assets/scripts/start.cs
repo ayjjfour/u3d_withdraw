@@ -64,7 +64,7 @@ public class start : MonoBehaviour {
     {
         _set_toggle_status(objItem, "Toggle", false);
         _set_field_info(objItem, "account", info.name);
-        _set_field_info(objItem, "passwd", info.passwd);
+        _set_field_info(objItem, "password", info.password);
         _set_field_info(objItem, "secondpwd", info.secondpwd);
         _set_field_info(objItem, "status", _get_status(info.flag));
         _set_field_info(objItem, "code", string.Format("{0}",info.flag));
