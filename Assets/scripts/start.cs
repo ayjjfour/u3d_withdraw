@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class start : MonoBehaviour {
 
-       static Dictionary<int, string> m_errcode = new Dictionary<int,string>{
+	static public Dictionary<int, string> m_errcode = new Dictionary<int,string>{
             {-9999, "未执行"},
             {-2001, "二级密码错误"},
             {-3001, "提取金额不正确"},
@@ -17,15 +17,53 @@ public class start : MonoBehaviour {
             {3001, "已经提取完毕"}
     };
 
+	start()
+	{
+	}
+
+	~start()
+	{
+		Debug.Log ("destroy start");
+		working_thread.stop();
+	}
+
     dataif m_dataif;
 	// Use this for initialization
 	void Start () {
+		userdata.init ();
+
         if (m_dataif == null)
             m_dataif = new dataif();
 
         button_event.m_dataif = m_dataif;
 
         _init_ui();
+		_start_routine ();
+	}
+
+	void Update()
+	{
+		userdata.UserEvent evt;
+		evt = userdata.get_event ();
+		switch (evt) {
+		case userdata.UserEvent.UEVT_FINISH:
+			button_event.fetch_money_finish ();
+			break;
+		}
+	}
+
+	static public string get_errmsg(int code)
+	{
+		string errmsg;
+		if (!m_errcode.ContainsKey (code))
+			return "";
+
+		if (code < 0)
+			errmsg = string.Format("<color=#ff0000>{0}</color>", m_errcode[code]);
+		else
+			errmsg = string.Format("<color=#00ff00>{0}</color>", m_errcode[code]);
+
+		return errmsg;
 	}
 
     private void _init_ui()
@@ -59,6 +97,11 @@ public class start : MonoBehaviour {
             gameObject.SetActive(true);
         }
     }
+
+	private void _start_routine()
+	{
+		working_thread.start ();
+	}
 
     private void _set_item_info(GameObject objItem, userdata.AccountInfo info)
     {

@@ -14,9 +14,10 @@ public class button_event : MonoBehaviour {
 		BTN_STOP = 32,
 	};
 
-    public static dataif m_dataif = null;
+	static public dataif m_dataif = null;
     static GameObject m_errmsgBox = null;
     static GameObject m_editBox = null;
+	static GameObject m_panel_grid = null;
     static Button m_btnAdd = null;
     static Button m_btnDelete = null;
     static Button m_btnSave = null;
@@ -50,30 +51,16 @@ public class button_event : MonoBehaviour {
 	}
 
 	public void click_button_delete(){
-		var gObject = GameObject.Find ("panel_list/scroll_list/Viewport/panel_grid");
-		if (gObject == null) {
-			Debug.Log ("Button Delete: find [scroll_list/Viewport/panel_grid] failed!");
-			return;
-		}
-
-		foreach(Transform child in gObject.transform){
-			if (child.name != "item") {
-				bool need_del = _check_selected (child);
-				if (need_del)
-					Destroy (child.gameObject);
-			}
-		}
+		if (_check_need_delete())
+			_show_message_box ("是删除选中的用户？", new messagebox.OkDelegate (_delete_items), null);
 	}
 
 	public void click_button_save(){
-		var gObject = GameObject.Find ("panel_list/scroll_list/Viewport/panel_grid");
-		if (gObject == null) {
-			Debug.Log ("Button Save: find [scroll_list/Viewport/panel_grid] failed!");
+		if (!_create_panel_list ())
 			return;
-		}
 
 		userdata.m_mapAccount.Clear ();
-		foreach(Transform child in gObject.transform){
+		foreach(Transform child in m_panel_grid.transform){
 			if (child.name == "item")
 				continue;
 
@@ -82,14 +69,14 @@ public class button_event : MonoBehaviour {
 			if (!need_save) {
 				Debug.Log ("Item [" + child.name + "] has empty fields!");
 				userdata.m_mapAccount.Clear ();
-                _show_errmsg("用户名，密码和二级密码不能为空");
+				_show_message_box("用户名，密码和二级密码不能为空");
 				return;
 			}
 
 			if (userdata.m_mapAccount.ContainsKey (info.name)) {
 				Debug.Log ("duplicate items!");
 				userdata.m_mapAccount.Clear ();
-                _show_errmsg(string.Format("用户名[{0}]，不能有重复", info.name));
+				_show_message_box(string.Format("用户名[{0}]，不能有重复", info.name));
 				return;
 			}
 
@@ -101,15 +88,36 @@ public class button_event : MonoBehaviour {
     }
 
 	public void click_button_reset(){
-		Debug.Log("Button Reset");  
+		Debug.Log("Button Reset");
+		if (!_create_panel_list ())
+			return;
+
+		foreach (Transform child in m_panel_grid.transform) {
+			if (child.name == "item")
+				continue;
+			_set_items_status (child, -9999);
+		}
+
+		click_button_save ();
 	}
 
 	public void click_button_start(){
-		Debug.Log("Button Start");  
+		Debug.Log("Button Start");
+		_set_buttons_enabled (ButtonBit.BTN_ADD | ButtonBit.BTN_DEL | ButtonBit.BTN_SAVE | ButtonBit.BTN_RESET | ButtonBit.BTN_START, false);
+		_set_edit_buttons_enabled (false);
+		_fetch_item_data ();
+		working_thread.send_event (working_thread.ThreadEvent.TEVT_RUN);
 	}
 
 	public void click_button_stop(){
-		Debug.Log("Button Stop");  
+		Debug.Log("Button Stop");
+		working_thread.send_event (working_thread.ThreadEvent.TEVT_STOP);
+		//_set_buttons_enabled (ButtonBit.BTN_ADD | ButtonBit.BTN_DEL | ButtonBit.BTN_SAVE | ButtonBit.BTN_RESET | ButtonBit.BTN_START, true);
+		//_set_edit_buttons_enabled (true);
+	}
+
+	public void click_button_exit(){
+		_show_message_box ("是否退出程序？", new messagebox.OkDelegate (_exit), null);
 	}
 
     public void click_button_edit()
@@ -142,8 +150,14 @@ public class button_event : MonoBehaviour {
         Debug.Log("obj = " + this.transform.parent);
     }
 
+	static public void fetch_money_finish()
+	{
+		_set_buttons_enabled (ButtonBit.BTN_ADD | ButtonBit.BTN_DEL | ButtonBit.BTN_SAVE | ButtonBit.BTN_RESET | ButtonBit.BTN_START, true);
+		_set_edit_buttons_enabled (true);
+	}
+
     // 校验Item是否被选中
-    private bool _check_selected(Transform trObj)
+    static private bool _check_selected(Transform trObj)
 	{
 		var toggle = trObj.GetComponentInChildren<Toggle>();
 		//Debug.Log ("toggle = " + toggle);
@@ -154,12 +168,13 @@ public class button_event : MonoBehaviour {
 	}
 
 	// 校验Item 的account，password和secondpwd字段是否为空
-	private bool _check_empty_and_fetch(Transform trObj, out userdata.AccountInfo info)
+	static private bool _check_empty_and_fetch(Transform trObj, out userdata.AccountInfo info)
 	{
 		info.name = "";
 		info.password = "";
 		info.secondpwd = "";
         info.flag = -9999;
+		info.item = trObj;
 
 		info.name = _get_field_text (trObj, "account");
 		if (info.name == "")
@@ -176,7 +191,7 @@ public class button_event : MonoBehaviour {
         string flag = _get_field_text(trObj, "code");
         if (flag != "")
             info.flag = int.Parse(flag);
-
+		
 		return true;
 	}
 
@@ -197,7 +212,7 @@ public class button_event : MonoBehaviour {
 		return field.text.Trim ();
 	}
 
-    private void _set_field_text(Transform trObj, string name, string value)
+    static private void _set_field_text(Transform trObj, string name, string value)
     {
         var obj = trObj.FindChild(name);
         if (obj == null)
@@ -216,7 +231,7 @@ public class button_event : MonoBehaviour {
         field.text = value;
     }
 
-	private void _set_buttons_enabled(ButtonBit btnbit, bool enabled)
+	static private void _set_buttons_enabled(ButtonBit btnbit, bool enabled)
 	{
 		if ((btnbit & ButtonBit.BTN_ADD) != 0) {
 			_set_button_enabled (ref m_btnAdd, "panel_top/button_add", enabled);
@@ -243,7 +258,7 @@ public class button_event : MonoBehaviour {
 		}
 	}
 
-	private void _set_button_enabled(ref Button objbtn, string name, bool enabled)
+	static private void _set_button_enabled(ref Button objbtn, string name, bool enabled)
 	{
 		if (objbtn == null) {
 			var btn_object = GameObject.Find (name);
@@ -256,7 +271,103 @@ public class button_event : MonoBehaviour {
 			objbtn.interactable = enabled;
 	}
 
-    private void _show_errmsg(string errmsg)
+	static private bool _create_panel_list()
+	{
+		if (m_panel_grid == null) {
+			m_panel_grid = GameObject.Find ("panel_list/scroll_list/Viewport/panel_grid");
+			if (m_panel_grid == null) {
+				Debug.Log ("Button Delete: find [scroll_list/Viewport/panel_grid] failed!");
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	static private bool _check_need_delete()
+	{
+		if (!_create_panel_list ())
+			return false;
+
+		foreach(Transform child in m_panel_grid.transform){
+			if (child.name != "item") {
+				bool need_del = _check_selected (child);
+				if (need_del)
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	// 删除回调函数
+	static public void _delete_items()
+	{
+		if (!_create_panel_list ())
+			return;
+
+		foreach(Transform child in m_panel_grid.transform){
+			if (child.name != "item") {
+				bool need_del = _check_selected (child);
+				if (need_del)
+					Destroy (child.gameObject);
+			}
+		}
+
+		_set_buttons_enabled (ButtonBit.BTN_RESET | ButtonBit.BTN_START, false);
+	}
+
+	static private void _set_items_status(Transform trObj, int code)
+	{
+		int	flag = code;
+		Transform obj = trObj.FindChild ("code");
+		Text text = obj.GetComponent<Text> ();
+		string errmsg = start.get_errmsg (flag);
+		Debug.Log ("errmsg = " + errmsg);
+		if (errmsg == "") {
+			flag = -9999;
+			errmsg = start.get_errmsg (flag);
+		}
+
+		text.text = string.Format("{0}", flag);
+
+		obj = trObj.FindChild("status");
+		text = obj.GetComponent<Text>();
+		text.text = errmsg;
+	}
+
+	static private void _set_edit_buttons_enabled(bool enabled)
+	{
+		if (!_create_panel_list ())
+			return;
+
+		foreach(Transform child in m_panel_grid.transform){
+			if (child.name != "item") {
+				Transform ObjBtn = child.FindChild ("button_edit");
+				Button TrBtn = ObjBtn.GetComponent<Button> ();
+				_set_button_enabled (ref TrBtn, "", enabled);
+			}
+		}
+	}
+
+	static private void _fetch_item_data()
+	{
+		userdata.m_mapAccount.Clear ();
+
+		if (!_create_panel_list ())
+			return;
+
+		foreach(Transform child in m_panel_grid.transform){
+			if (child.name == "item")
+				continue;
+
+			userdata.AccountInfo info;
+			_check_empty_and_fetch (child, out info);
+			userdata.m_mapAccount.Add (info.name, info);
+		}
+	}
+
+	static private void _show_message_box(string msg, messagebox.OkDelegate funOK = null, messagebox.CancelDelegate funCancel = null)
     {
         if (m_errmsgBox == null)
         {
@@ -274,7 +385,8 @@ public class button_event : MonoBehaviour {
         {
             GameObject Parent = GameObject.Find("UIMain");
             m_errmsgBox.name = "messagebox";
-            _set_field_text(m_errmsgBox.transform, "background/errmsg", errmsg);
+			messagebox.set_callback (funOK, funCancel);
+            _set_field_text(m_errmsgBox.transform, "background/errmsg", msg);
             m_errmsgBox.layer = LayerMask.NameToLayer("Default");
             m_errmsgBox.transform.SetParent(Parent.transform);
             m_errmsgBox.transform.localScale = Vector3.one;
@@ -282,4 +394,10 @@ public class button_event : MonoBehaviour {
             m_errmsgBox.SetActive(true);
         }
     }
+
+	static public void _exit()
+	{
+		Debug.Log ("Exit");
+		Application.Quit ();
+	}
 }

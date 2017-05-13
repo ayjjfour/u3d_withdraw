@@ -54,10 +54,6 @@ public class editbox : MonoBehaviour {
         _set_input_data(objItem, "account", objEdit, "background/account/InputField");
         _set_input_data(objItem, "password", objEdit, "background/password/InputField");
         _set_input_data(objItem, "secondpwd", objEdit, "background/secondpwd/InputField");
-
-        Transform obj = objItem.FindChild("Toggle");
-        Toggle toggle = obj.GetComponent<Toggle>();
-        toggle.isOn = false;
     }
 
     static private void _set_input_data(Transform objItem, string fieldname, Transform objEdit, string inputname )
@@ -80,6 +76,10 @@ public class editbox : MonoBehaviour {
         _set_item_data(objEdit, "background/account/InputField", objItem, "account");
         _set_item_data(objEdit, "background/password/InputField", objItem, "password");
         _set_item_data(objEdit, "background/secondpwd/InputField", objItem, "secondpwd");
+
+		Transform obj = objItem.FindChild("Toggle");
+		Toggle toggle = obj.GetComponent<Toggle>();
+		toggle.isOn = false;
     }
 
     static private void _set_item_data(Transform objEdit, string inputname, Transform objItem, string fieldname)

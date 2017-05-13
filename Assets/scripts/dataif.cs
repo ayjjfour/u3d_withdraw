@@ -97,6 +97,7 @@ public class dataif {
             info.password = sqReader.GetString(sqReader.GetOrdinal("password"));
             info.secondpwd = sqReader.GetString(sqReader.GetOrdinal("secondpwd"));
             info.flag = sqReader.GetInt32(sqReader.GetOrdinal("fetch_flag"));
+			info.item = null;
 
             userdata.m_mapAccount.Add(info.name, info);
         } 
