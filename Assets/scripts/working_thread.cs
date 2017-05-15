@@ -8,6 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Xml;
+using System;
 using HtmlAgilityPack;
 
 public class working_thread {
@@ -22,7 +23,7 @@ public class working_thread {
 	static public Queue<ThreadEvent> m_evt_queue;
 	static public int m_monitor_flag = 0;
 	static public int m_work_flag = 0;
-	static public Object m_evt_lock;
+	static public object m_evt_lock;
 
 	static public Thread m_monitor_thread = null;
 	static public Thread m_work_thread = null;
@@ -48,7 +49,7 @@ public class working_thread {
 	{
 		m_evt_queue = new Queue<ThreadEvent> ();
 		m_monitor_flag = 1;
-		m_evt_lock = new Object ();
+        m_evt_lock = new object();
 		m_monitor_thread = new Thread (_monitor_thread);
 		m_monitor_thread.Start ();
 		m_monitor_thread.IsBackground = true;
@@ -76,6 +77,22 @@ public class working_thread {
 			m_work_thread = null;
 		}
 	}
+
+    static public void send_log(string msg)
+    {
+        string log = string.Format("[{0}]:", DateTime.Now.ToString("s"));
+
+        log += msg;
+
+        userdata.set_log(log);
+        userdata.set_event(userdata.UserEvent.UEVT_LOG);
+    }
+
+    static public void send_info(userdata.AccountInfo info)
+    {
+        userdata.set_info(info);
+        userdata.set_event(userdata.UserEvent.UEVT_STATUS);
+    }
 
 	static private void _start_work_thread()
 	{
@@ -145,30 +162,54 @@ public class working_thread {
 
 	static private void _work_thread()
 	{
-		foreach (KeyValuePair<string, userdata.AccountInfo> kvp in userdata.m_mapAccount)
-		{
-			if (m_work_flag == 0)
-				break;
-			
-			_fetch_user_money(kvp.Value);
-		}
+        try
+        {
+            bool go;
+            do
+            {
+                go = false;
+                foreach (KeyValuePair<string, userdata.AccountInfo> kvp in userdata.m_mapAccount)
+                {
+                    if (m_work_flag == 0)
+                    {
+                        go = false;
+                        break;
+                    }
 
-		userdata.set_event (userdata.UserEvent.UEVT_FINISH);
+                    if (kvp.Value.flag >= 0)
+                        continue;
 
-		m_work_flag = 0;
-		m_work_thread = null;
+                    if (!_fetch_user_money(kvp.Value))
+                        go = true;
+                }
+            } while (go);
+        }
+        catch
+        {
+            send_log("<color=#ff0000>操作发生异常</color>");
+        }
+        finally
+        {
+            userdata.set_event(userdata.UserEvent.UEVT_FINISH);
+            send_log("<color=#00ff00>完成一次批量操作</color>");
+            m_work_flag = 0;
+            m_work_thread = null;
+        }
 	}
 
-	static private void _fetch_user_money(userdata.AccountInfo info)
+	static private bool _fetch_user_money(userdata.AccountInfo info)
 	{
 		Debug.Log ("_fetch_user_money account = " + info.name);
 
+        // 请求页面
+        send_log(string.Format("用户[{0}]开始登录", info.name));
 		string url = "http://www.sjhy2016.com";
 		CookieContainer m_Cookie = new CookieContainer();
 		HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
 		request.Method = "GET";
 		request.ContentType = "text/html;charset=UTF-8";
 
+        request.CookieContainer = m_Cookie;
 		HttpWebResponse response = (HttpWebResponse)request.GetResponse();
 		Stream myResponseStream = response.GetResponseStream();
 		StreamReader myStreamReader = new StreamReader(myResponseStream, Encoding.GetEncoding("utf-8"));
@@ -178,14 +219,28 @@ public class working_thread {
 
 		Debug.Log("ret text = " + retString);
 
-		// retString = "<transforms>\n  <rotation id=\"1000\" name=\"momo\">\n    <x>0</x>\n    <y>1</y>\n    <z id=\"1\">update00000</z>\n  </rotation>\n  <rotation id=\"1\" name=\"yusong\">\n    <x id=\"1\">0</x>\n    <y>1</y>\n    <z>2</z>\n  </rotation>\n</transforms>";
-
+       // 解析html文本
 		HtmlDocument doc = new HtmlDocument();
 		Debug.Log ("new xml ok");
 		doc.LoadHtml (retString);
 
 		Debug.Log ("load xml ok");
+        HtmlNode node__VIEWSTATE = doc.DocumentNode.SelectSingleNode("//input[@id='__VIEWSTATE']");
+        string __VIEWSTATE = node__VIEWSTATE.GetAttributeValue("value", "");
+        Debug.Log("__VIEWSTATE = " + __VIEWSTATE);
+        //send_log(info.name + ": __VIEWSTATE = " + __VIEWSTATE);
 
+        HtmlNode node__EVENTVALIDATION = doc.DocumentNode.SelectSingleNode("//input[@id='__EVENTVALIDATION']");
+        string __EVENTVALIDATION = node__EVENTVALIDATION.GetAttributeValue("value", "");
+        Debug.Log("__EVENTVALIDATION = " + __EVENTVALIDATION);
+        //send_log(info.name + ": __EVENTVALIDATION = " + __EVENTVALIDATION);
 
+        // 正常结束
+        info.flag = 0;
+
+        // 更新状态
+        send_info(info);
+
+        return true;
 	}
 }

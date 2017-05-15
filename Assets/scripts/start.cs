@@ -46,9 +46,15 @@ public class start : MonoBehaviour {
 		userdata.UserEvent evt;
 		evt = userdata.get_event ();
 		switch (evt) {
-		case userdata.UserEvent.UEVT_FINISH:
-			button_event.fetch_money_finish ();
-			break;
+		    case userdata.UserEvent.UEVT_FINISH:
+			    button_event.fetch_money_finish ();
+			    break;
+            case userdata.UserEvent.UEVT_LOG:
+                _add_log(userdata.get_log());
+                break;
+            case userdata.UserEvent.UEVT_STATUS:
+                _update_status(userdata.get_info());
+                break;
 		}
 	}
 
@@ -166,5 +172,41 @@ public class start : MonoBehaviour {
             errmsg = string.Format("<color=#00ff00>{0}</color>", m_errcode[localflag]);
 
         return errmsg;
+    }
+
+    private void _add_log(string log)
+    {
+        var gObject = GameObject.Find("scroll_log/Viewport/panel_grid/item");
+        if (gObject == null)
+        {
+            Debug.Log("Button Add: find [scroll_log/Viewport/panel_grid/item] failed!");
+            return;
+        }
+
+        // 创建一个新的“item”对象
+        var gameObject = GameObject.Instantiate(gObject);
+        if (gameObject == null)
+        {
+            Debug.Log("Button Add: Create item failed!");
+            return;
+        }
+
+        // 设置新对象的参数
+        userdata.m_index++;
+        gameObject.transform.SetParent(gObject.transform.parent);
+        gameObject.name = "item" + userdata.m_index;
+        gameObject.transform.localScale = Vector3.one;
+        gameObject.transform.localPosition = Vector3.zero;
+
+        Transform trLog = gameObject.transform.FindChild("log");
+        Text textLog = trLog.GetComponent<Text>();
+        textLog.text = log;
+
+        gameObject.SetActive(true);
+    }
+
+    static private void _update_status(userdata.AccountInfo info)
+    {
+        button_event._set_items_status(info.item.transform, info.flag);
     }
 }

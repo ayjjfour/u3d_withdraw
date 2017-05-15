@@ -317,7 +317,7 @@ public class button_event : MonoBehaviour {
 		_set_buttons_enabled (ButtonBit.BTN_RESET | ButtonBit.BTN_START, false);
 	}
 
-	static private void _set_items_status(Transform trObj, int code)
+	static public void _set_items_status(Transform trObj, int code)
 	{
 		int	flag = code;
 		Transform obj = trObj.FindChild ("code");
